@@ -1,0 +1,2 @@
+vowels :: [Char] -> Bool
+vowels xs = length ys == 3 where ys = [x | x <- xs, x <- ['a','e','i','o','u']]

@@ -1,0 +1,34 @@
+lights = [[(x, y, 0)] | x <- [0..999], y <- [0..999]]
+
+select x1 y1 x2 y2 light = map (\a -> take (y2 - y1) $ drop y1 a) (take (x2 - x1) $ drop x1 light)
+rejoin x1 y1 x2 y2 light sel =
+
+on x1 y1 x2 y2 light = (map (map turn) (select x1 y1 x2 y2 light))
+  where turn (x, y, _) = (x, y, 1)
+        
+        
+
+off x1 y1 x2 y2 light = rejoin x1 y1 x2 y2 light (map (a ++ map turn ++ b) (select x1 y1 x2 y2 light)) 
+  where turn (x, y, _) = (x, y, 0)
+
+toggle x1 y1 x2 y2 light = map (map turn) (select x1 y1 x2 y2 light)
+  where turn (x, y, 0) = (x, y, 1)
+        turn (x, y, 1) = (x, y, 0)
+        turn (x, y, _) = (x, y, 0)
+
+-- returns List of Strings in Form [function, x1, y1, x2, y2]
+readStr :: [Char] -> [[Char]]
+readStr xs
+  | take 2 xs == "tu" = (take 3 $ drop 1 ws) ++ drop 5 ws
+  | otherwise = take 3 ws ++ drop 4 ws
+  where ws = words [(\a -> if a == ',' then ' ' else a) x | x <- xs]
+
+solve1 [] ls = ls
+solve1 (x:xs) ls = let lss = if head x == "off" then off x1 y1 x2 y2
+                             else if head x == "on" then on x1 y1 x2 y2
+                             else toggle x1 y1 x2 y2
+                   in solve1 xs lss
+                   where x1 = read (head $ tail x) :: Int
+                         y1 = read (head $ drop 2 x) :: Int
+                         x2 = read (head $ drop 3 x) :: Int
+                         y2 = read (last x) :: Int
