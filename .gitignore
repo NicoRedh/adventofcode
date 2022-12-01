@@ -2,10 +2,11 @@
 .o
 .hi
 .hs~
-<<<<<<< HEAD
 .hs~
 =======
 *.exe
 *.hi
 *.o
->>>>>>> 11219db479556a3ca39fa8f099bdd908fa7765e7
+*.class
+.vscode
+
