@@ -15,27 +15,7 @@ longRope = ([(0,0), (0,0), (0,0), (0,0), (0,0), (0,0), (0,0), (0,0), (0,0), (0,0
 alignPair :: (Coord, Coord) -> Coord
 alignPair (head@(hx, hy), tail@(tx, ty))
     | abs (hx-tx) <= 1 && abs (hy-ty) <= 1 = tail
-    | hx == tx + 2 = case () of _
-                                    | hy == ty + 1 || hy == ty + 2 -> (tx + 1, ty + 1)
-                                    | hy == ty                     -> (tx + 1, ty)
-                                    | hy == ty - 1 || hy == ty - 2 -> (tx + 1, ty - 1)
-                                    | otherwise -> error "ERROR: alignPair -> hx == tx + 2 - pattern should be unreachable"
-    | hx == tx - 2 = case () of _
-                                    | hy == ty + 1 || hy == ty + 2 -> (tx - 1, ty + 1)
-                                    | hy == ty                     -> (tx - 1, ty)
-                                    | hy == ty - 1 || hy == ty - 2 -> (tx - 1, ty - 1)
-                                    | otherwise -> error "ERROR: alignPair -> hx == tx - 2 - pattern should be unreachable"
-    | hy == ty + 2 = case () of _ 
-                                    | hx == tx + 1 -> (tx + 1, ty + 1)
-                                    | hx == tx     -> (tx, ty + 1)
-                                    | hx == tx - 1 -> (tx - 1, ty + 1)
-                                    | otherwise -> error "ERROR: alignPair -> hy == ty + 2 - pattern should be unreachable"
-    | hy == ty - 2 = case () of _ 
-                                    | hx == tx + 1 -> (tx + 1, ty - 1)
-                                    | hx == tx     -> (tx, ty - 1)
-                                    | hx == tx - 1 -> (tx - 1, ty - 1)
-                                    | otherwise -> error "ERROR: alignPair -> hy == ty - 2 - pattern should be unreachable"
-    | otherwise = error ("ERROR: alignPair pattern should be unreachable, hx=" ++ show hx ++ ", hy=" ++ show hy ++ ", tx=" ++show tx ++ ", ty=" ++ show ty)
+    | otherwise = (if hx > tx then tx + 1 else if hx == tx then tx else tx - 1, if hy > ty then ty + 1 else if hy == ty then ty else ty - 1)
 
 -- sends pairs to alignPair to be aligned according to the movement rules
 alignAll :: Rope -> Rope
