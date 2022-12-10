@@ -15,7 +15,7 @@ longRope = ([(0,0), (0,0), (0,0), (0,0), (0,0), (0,0), (0,0), (0,0), (0,0), (0,0
 alignPair :: (Coord, Coord) -> Coord
 alignPair (head@(hx, hy), tail@(tx, ty))
     | abs (hx-tx) <= 1 && abs (hy-ty) <= 1 = tail
-    | otherwise = (if hx > tx then tx + 1 else if hx == tx then tx else tx - 1, if hy > ty then ty + 1 else if hy == ty then ty else ty - 1)
+    | otherwise = (tx + signum (hx - tx), ty + signum (hy - ty))
 
 -- sends pairs to alignPair to be aligned according to the movement rules
 alignAll :: Rope -> Rope
