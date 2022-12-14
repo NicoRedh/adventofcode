@@ -1,61 +1,94 @@
-import Data.Map (Map, insert, empty, union, filter, keys, (!), findMax, size, member, unions, lookup)
+import Data.Map (Map, insert, empty, (!), lookup, toList, delete)
 import Debug.Trace (trace)
-import Data.Maybe (isJust)
+import Data.Foldable (minimumBy)
+import Data.Function (on)
 
 type Grid = Map (Int,Int) Int
+type Coord = (Int, Int)
 
-parse :: [Char] -> Grid
-parse xs = putLines 0 (lines xs) empty
-    where putLines :: Int -> [[Char]] -> Grid -> Grid
-          putLines n xs map
-            | length xs == n = map
-            | otherwise = putLines (n+1) xs (putLine 0 n (xs !! n) map)
-          putLine :: Int -> Int -> [Char] -> Grid -> Grid
-          putLine x y xs map
-            | length xs == x = map
-            | xs !! x == 'S' = putLine (x+1) y xs (insert (x,y) 0 map)
-            | xs !! x == 'E' = putLine (x+1) y xs (insert (x,y) 27 map)
-            | otherwise = putLine (x+1) y xs (insert (x,y) (fromEnum  (xs !! x) - 96) map)
+--           pos    neighbors height visited (start, end, middle) dist
+type Elem = (Coord, [Coord], Int, Int, Int)
+type Elemap = Map Coord [Coord]
+type DistMap = Map Coord Int
 
-findEnd xs = head $ keys $ Data.Map.filter ( == 27) xs
+-- int here is the part no, because the starting options change
+parse :: [Char] -> Int -> [[Elem]]
+parse xs part = putLines 0 (lines xs)
+    where putLines :: Int -> [[Char]] -> [[Elem]]
+          putLines n xs
+            | length xs == n = []
+            | otherwise = putLine 0 n (xs !! n) : putLines (n+1) xs
+          putLine :: Int -> Int -> [Char] -> [Elem]
+          putLine x y xs
+            | length xs == x = []
+            | xs !! x == 'S' = ((x,y), [], 1, 1, 0) : putLine (x+1) y xs
+            | xs !! x == 'E' = ((x,y), [], 26, 2, maxBound) : putLine (x+1) y xs
+            | xs !! x == 'a' = ((x,y), [], 1, 1, if part == 2 then 0 else maxBound) : putLine (x+1) y xs
+            | otherwise = ((x,y), [], fromEnum (xs !! x) - 96, 3, maxBound) : putLine (x+1) y xs
 
-adjustEnd xs = insert (findEnd xs) 26 xs
+getElem :: Coord -> [[Elem]] -> Elem
+--getElem (x,y) ls | trace ("x: " ++ show x ++ " y: " ++ show y) False = undefined
+getElem (x,y) ls = (ls !! y) !! x
 
-determineDist :: (Int,Int) -> Int -> Grid -> Grid -> Grid
---determineDist (maxx, maxy) n heightMap distMap | trace ("n: " ++ show n ++ " size of DistMap: " ++ show (size distMap))  False = undefined
-determineDist (maxx, maxy) n heightMap distMap
-    | mod n (div (size heightMap) 10) == 0 = if distMap == newDistMap 0 distMap then distMap else determineDist (maxx,maxy) (n+1) heightMap (newDistMap 0 distMap)
-    | x > maxx || y > maxy = distMap
-    | otherwise = determineDist (maxx,maxy) (n+1) heightMap (newDistMap 0 distMap)
-    where x = mod n (maxx + 1)
-          y = div n (maxx + 1)
-          newDistMap m dMap
-            | m > n = dMap
-            | otherwise = newDistMap (m + 1) $ mapDist (keys (Data.Map.filter (== m) dMap)) `union` dMap
-            where   mapDist :: [(Int, Int)] -> Grid
-                    mapDist ks = foldl checkAll empty ks
-                    checkAll :: Grid -> (Int, Int) -> Grid
-                    checkAll g k@(keyx, keyy) = checkD (checkU (checkL (checkR g k) k) k) k
-                    checkL g k@(keyx, keyy) = if keyx > 0    && heightMap ! (keyx, keyy) + 1 >= heightMap ! (keyx - 1, keyy) then if member (keyx - 1, keyy) dMap then if dMap ! (keyx - 1, keyy) > m + 1 then insert (keyx - 1, keyy) (m + 1) g else g else insert (keyx - 1, keyy) (m + 1) g else g
-                    checkR g k@(keyx, keyy) = if keyx < maxx && heightMap ! (keyx, keyy) + 1 >= heightMap ! (keyx + 1, keyy) then if member (keyx + 1, keyy) dMap then if dMap ! (keyx + 1, keyy) > m + 1 then insert (keyx + 1, keyy) (m + 1) g else g else insert (keyx + 1, keyy) (m + 1) g else g
-                    checkD g k@(keyx, keyy) = if keyy > 0    && heightMap ! (keyx, keyy) + 1 >= heightMap ! (keyx, keyy - 1) then if member (keyx, keyy - 1) dMap then if dMap ! (keyx, keyy - 1) > m + 1 then insert (keyx, keyy - 1) (m + 1) g else g else insert (keyx, keyy - 1) (m + 1) g else g
-                    checkU g k@(keyx, keyy) = if keyy < maxy && heightMap ! (keyx, keyy) + 1 >= heightMap ! (keyx, keyy + 1) then if member (keyx, keyy + 1) dMap then if dMap ! (keyx, keyy + 1) > m + 1 then insert (keyx, keyy + 1) (m + 1) g else g else insert (keyx, keyy + 1) (m + 1) g else g
+getNeighbors :: [[Elem]] -> [[Elem]]
+getNeighbors xs = map (map detN) xs
+    where detN ((x,y), ns, height, ps, ds) = ((x,y),
+                                             (if x < maxx then checkR (getElem (x + 1, y) xs) else []) ++
+                                             (if x > 0    then checkL (getElem (x - 1, y) xs) else []) ++
+                                             (if y < maxy then checkD (getElem (x, y + 1) xs) else []) ++
+                                             (if y > 0    then checkU (getElem (x, y - 1) xs) else []) ++ ns,
+                                             height,
+                                             ps,
+                                             ds)
+                where checkL neigh@((nx,ny), _, nh, _, _) = [(nx,ny) | height + 1 >= nh]
+                      checkR neigh@((nx,ny), _, nh, _, _) = [(nx,ny) | height + 1 >= nh]
+                      checkD neigh@((nx,ny), _, nh, _, _) = [(nx,ny) | height + 1 >= nh]
+                      checkU neigh@((nx,ny), _, nh, _, _) = [(nx,ny) | height + 1 >= nh]
+                      maxx = length (head xs) - 1
+                      maxy = length xs - 1
 
+determineDist :: Elemap -> DistMap -> DistMap -> DistMap
+--determineDist elemap rest result | trace ("\nresultMap: " ++ show result) False = undefined
+determineDist elemap rest result
+  | null rest = result
+  | otherwise = determineDist elemap newRest newResult
+    where (currCoord,currDist) = minimumBy (compare `on` snd) (toList rest)
+          restWithoutCurrMin = delete currCoord rest
+          newRest = foldl inspectNeighbor restWithoutCurrMin (elemap ! currCoord)
+                    where --inspectNeighbor mapMaybeWithNeighbors neighbor | trace ("\nmap to be searched: " ++ show mapMaybeWithNeighbors ++ "\nneighbor that is examined: " ++ show neighbor) False = undefined
+                          inspectNeighbor mapMaybeWithNeighbors neighbor = case Data.Map.lookup neighbor restWithoutCurrMin of Nothing -> mapMaybeWithNeighbors
+                                                                                                                               Just nds -> if nds > currDist + 1 then insert neighbor (currDist + 1) mapMaybeWithNeighbors else mapMaybeWithNeighbors
+          newResult = insert currCoord currDist result
 
+elemToDistMap :: [[Elem]] -> DistMap -> DistMap
+elemToDistMap [] elmap = elmap
+elemToDistMap (fs:xs) elmap = elemToDistMap xs (elmapLine fs elmap)
+    where elmapLine [] currElmap = currElmap
+          elmapLine (((x,y), ns, height, ps, ds):xs) currElmap = elmapLine xs $ insert (x,y) ds currElmap
 
+elemToElemap :: [[Elem]] -> Elemap -> Elemap
+elemToElemap [] elmap = elmap
+elemToElemap (fs:xs) elmap = elemToElemap xs (elmapLine fs elmap)
+    where elmapLine [] currElmap = currElmap
+          elmapLine (((x,y), ns, height, ps, ds):xs) currElmap = elmapLine xs $ insert (x,y) ns currElmap
 
-solve xs = Data.Map.lookup end $ determineDist (maximum $ keys adjustedInput) 0 adjustedInput (insert (head $ keys $ Data.Map.filter (== 0) adjustedInput) 0 empty)
-    where adjustedInput = adjustEnd input
-          input = parse xs
-          end = findEnd input
+findEndCoords :: [[Elem]] -> Coord
+findEndCoords xs = getCoord $ head $ concatMap getEnd xs
+  where getEnd xs = [x | x <- xs, getPos x == 2]
+        getPos (_,_,_,ps,_) = ps
+        getCoord (c,_,_,_,_) = c
 
-solve2 :: [Char] -> Maybe Int
-solve2 xs = minimum $ Prelude.filter isJust [Data.Map.lookup end $ determineDist (maximum $ keys adjustedInput) 0 adjustedInput (insert x 0 empty) | x <- keys $ Data.Map.filter (<= 1) adjustedInput]
-    where adjustedInput = adjustEnd input
-          input = parse xs
-          end = findEnd input
-
+solve1 xs = Data.Map.lookup endCoords $ determineDist elmap distMap empty
+  where elems = getNeighbors (parse xs 1)
+        distMap = elemToDistMap elems empty
+        elmap = elemToElemap elems empty
+        endCoords = findEndCoords elems
+solve2 xs = Data.Map.lookup endCoords $ determineDist elmap distMap empty
+  where elems = getNeighbors (parse xs 2)
+        distMap = elemToDistMap elems empty
+        elmap = elemToElemap elems empty
+        endCoords = findEndCoords elems
 main = do
     input <- getContents
-    print $ solve input
+    print $ solve1 input
     print $ solve2 input
