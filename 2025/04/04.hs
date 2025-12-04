@@ -10,9 +10,10 @@ setIndex val (x,y) grid = init (fst splX) ++ [init (fst splY) ++ [((fst (last (f
         splY = splitAt (y + 1) (last (fst splX))
 
 calc :: (Int, Int) -> Grid -> Grid
-calc (x, y) grid 
+calc (x, y) grid
   | x >= xlen = grid                          -- finished the last row
   | y >= ylen = calc (x + 1, 0) grid          -- finished one row -> move to the next
+  | fst (grid !! x !! y) == 0 = calc (x, y + 1) grid
   | otherwise = calc (x, y + 1) (setIndex value (x,y) grid)
   where ylen = length (grid !! 0)
         xlen = length grid
